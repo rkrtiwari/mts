@@ -96,10 +96,10 @@ def initialize_population(population_size, n_city, n_deliveryboy):
         population_route[i,:] = np.random.permutation(range(1,n_city))
         population_breaks[i,:] = create_temporay_break(n_city, n_deliveryboy)
         
-    population_breaks = population_breaks.astype(int)
+    population_break = population_breaks.astype(int)
     population_route = population_route.astype(int) 
     
-    return population_route, population_breaks
+    return population_route, population_break
     
     
 def update_population(population_route, population_breaks, population_distances):
@@ -128,16 +128,16 @@ def update_population(population_route, population_breaks, population_distances)
         
     
 def generate_new_solution_from_the_best_solutions(best_pop_route, best_pop_break):
-    n_city = len(best_pop_route)
-    n_deliveryboy = len(best_pop_break)
-    insertion_point = np.sort(np.ceil(n_city*np.random.random((2))))
+    n_route = len(best_pop_route) 
+    n_break = len(best_pop_break)
+    insertion_point = np.sort(np.ceil((n_route-1)*np.random.random((2))))
     insertion_point = insertion_point.astype(int)
     
     I = insertion_point[0]
     J = insertion_point[1]
     
-    tmp_pop_route = np.zeros((8, n_city))
-    tmp_pop_break = np.zeros((8, n_deliveryboy))
+    tmp_pop_route = np.zeros((8, n_route))
+    tmp_pop_break = np.zeros((8, n_break))
     
     # create k solutions
     for k in range(8):
@@ -155,21 +155,21 @@ def generate_new_solution_from_the_best_solutions(best_pop_route, best_pop_break
             ind_2.append(I)
             tmp_pop_route[k,ind_1] = tmp_pop_route[k,ind_2]
         elif(k == 4 ):         # modify breaks
-            tmp_pop_break[k,:] = create_temporay_break(n_city, n_deliveryboy) 
+            tmp_pop_break[k,:] = create_temporay_break(n_route + 1, n_break + 1) 
         elif(k == 5): # flip, modify breaks
             ind_1 = range(I,J)
             ind_2 = range(J-1, I-1, -1)
             tmp_pop_route[k, ind_1] = tmp_pop_route[k, ind_2]
-            tmp_pop_break[k,:] = create_temporay_break(n_city, n_deliveryboy)            
+            tmp_pop_break[k,:] = create_temporay_break(n_route + 1, n_break + 1)            
         elif(k == 6):   # swap, modify breaks
             tmp_pop_route[k,[I,J]] = tmp_pop_route[k, [J,I]]
-            tmp_pop_break[k,:] = create_temporay_break(n_city, n_deliveryboy)
+            tmp_pop_break[k,:] = create_temporay_break(n_route + 1, n_break + 1)
         elif (k == 7):
             ind_1 = range(I,J)
             ind_2 = range(I+1,J)
             ind_2.append(I)
             tmp_pop_route[k,ind_1] = tmp_pop_route[k,ind_2]
-            tmp_pop_break[k,:] = create_temporay_break(n_city, n_deliveryboy)
+            tmp_pop_break[k,:] = create_temporay_break(n_route + 1, n_break + 1)
     return tmp_pop_route, tmp_pop_break
 
 
@@ -179,34 +179,53 @@ def run_optimization(population_size, n_deliveryboy, n_iteration, central_locati
     
     dist_mat = get_distance_matrix(location_data, central_location)
     
-    n_city, _ = location_data.shape
+    n_city, _ = dist_mat.shape
     
-    population_route, population_breaks = initialize_population(population_size, n_city, n_deliveryboy)
+    pop_route, pop_break = initialize_population(population_size, n_city, n_deliveryboy)
     
-    population_distance = calculate_distance_for_whole_population(dist_mat, pop_route, pop_break)
+    pop_distance = calculate_distance_for_whole_population(dist_mat, pop_route, pop_break)
     
-    best_distance = np.zeros(n_iteration)
-    best_distance[0] = min(population_distance)
+    global_min = np.inf
     
-    for i in range(1, n_iteration):
-        population_route, population_breaks = update_population(population_route, population_breaks, population_distances)
-        population_distance = calculate_distance_for_whole_population(dist_mat, pop_route, pop_break)
-        best_distance[i] = min(population_distance)
+    for i in range(n_iteration):
+        if (i == 0):
+            pop_route, pop_break = initialize_population(population_size, n_city, n_deliveryboy)
+            pop_distance = calculate_distance_for_whole_population(dist_mat, pop_route, pop_break)
+        else:
+            pop_route, pop_break = update_population(pop_route, pop_break, pop_distance)
+            pop_distance = calculate_distance_for_whole_population(dist_mat, pop_route, pop_break)
+
+        ind = np.argmin(pop_distance)
         
-    return best_distance, population_route, population_breaks
+        if (pop_distance[ind] < global_min):
+            global_min = pop_distance[ind]
+            optimal_route = pop_route[ind]
+            optimal_break = pop_break[ind]
+        
+        # here add a line to keep track of the optimal distance
+        print 'Iteration No: ', i,  ' Global Minimum: ', global_min
+    return global_min, optimal_route, optimal_break
 
    
 if __name__ == '__main__':
-    pop_route, pop_break = initialize_population(10, 8, 3)
-    dist_matrix = np.random.randint(100, size=(11, 11)) 
-    d = calculate_total_trip_distance(dist_matrix, pop_route[1], pop_break[1])
-    population_distances = calculate_distance_for_whole_population(dist_matrix, pop_route, pop_break)
+    population_size = 80
+    n_deliveryboy = 25
+    n_iteration = 1000
+    central_location = [11.552931,104.933636]
+    filename = 'locations.csv'    
+    global_min, optimal_route, optimal_break = run_optimization(population_size, n_deliveryboy, n_iteration, central_location, filename)
+#    pop_route, pop_break = initialize_population(10, 8, 3)
+#    dist_matrix = np.random.randint(100, size=(11, 11)) 
+#    d = calculate_total_trip_distance(dist_matrix, pop_route[1], pop_break[1])
+#    population_distances = calculate_distance_for_whole_population(dist_matrix, pop_route, pop_break)
 #    central_location = [11.552931,104.933636]
 #    location_data = read_city_lat_long('locations.csv')
-#    n_salesmen = 25
+#    n_deliveryboy = 25
 #    dist_mat = get_distance_matrix(location_data, central_location)
 #    n_city, _ = dist_mat.shape
-#    p_route = np.random.permutation(range(1,n_city))
-#    p_breaks = create_temporay_break(n_city, n_salesmen)
+#    population_size = 80  # should be a multiple of 8
+#    population_route, population_break = initialize_population(population_size, n_city, n_deliveryboy)
+
+
 
     
