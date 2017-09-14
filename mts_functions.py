@@ -12,6 +12,7 @@ Created on Tue Sep 12 14:18:36 2017
 import numpy as np
 import math
 import pandas as pd
+import matplotlib.pyplot as plt
 
 
 def read_city_lat_long(filename):
@@ -186,6 +187,7 @@ def run_optimization(population_size, n_deliveryboy, n_iteration, central_locati
     pop_distance = calculate_distance_for_whole_population(dist_mat, pop_route, pop_break)
     
     global_min = np.inf
+    convergence = np.zeros((n_iteration, 2))
     
     for i in range(n_iteration):
         if (i == 0):
@@ -203,17 +205,23 @@ def run_optimization(population_size, n_deliveryboy, n_iteration, central_locati
             optimal_break = pop_break[ind]
         
         # here add a line to keep track of the optimal distance
-        print 'Iteration No: ', i,  ' Global Minimum: ', global_min
-    return global_min, optimal_route, optimal_break
+        
+        convergence[i] = [i, global_min]
+        if(i%100 == 0):
+            print i, global_min
+#            print 'Iteration No: ', i,  ' Global Minimum: ', global_min
+                    
+    return global_min, optimal_route, optimal_break, convergence
 
    
 if __name__ == '__main__':
     population_size = 80
     n_deliveryboy = 25
-    n_iteration = 1000
+    n_iteration = 5000
     central_location = [11.552931,104.933636]
     filename = 'locations.csv'    
-    global_min, optimal_route, optimal_break = run_optimization(population_size, n_deliveryboy, n_iteration, central_location, filename)
+    global_min, optimal_route, optimal_break, convergence = run_optimization(population_size, n_deliveryboy, n_iteration, central_location, filename)
+    plt.plot(convergence[:,0], convergence[:,1])
 #    pop_route, pop_break = initialize_population(10, 8, 3)
 #    dist_matrix = np.random.randint(100, size=(11, 11)) 
 #    d = calculate_total_trip_distance(dist_matrix, pop_route[1], pop_break[1])
